@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  claude-code:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        TZ: ${TZ:-America/Los_Angeles}
+        CLAUDE_CODE_VERSION: ${CLAUDE_CODE_VERSION:-latest}
+        GIT_DELTA_VERSION: 0.18.2
+        ZSH_IN_DOCKER_VERSION: 1.2.0
+    container_name: claude-code-sandbox
+    cap_add:
+      - NET_ADMIN
+      - NET_RAW
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - NODE_OPTIONS=--max-old-space-size=4096
+      - CLAUDE_CONFIG_DIR=/home/node/.claude
+      - POWERLEVEL9K_DISABLE_GITSTATUS=true
+    volumes:
+      # Mount your project directory here
+      - ${PROJECT_DIR:-.}:/workspace
+      # Persistent volumes for history and config
+      - claude-code-bashhistory:/commandhistory
+      - claude-code-config:/home/node/.claude
+    ports:
+      # Expose port for OAuth callback during web-based login
+      - "38714:38714"
+    working_dir: /workspace
+    user: node
+    stdin_open: true
+    tty: true
+    entrypoint: ["/bin/bash", "-c"]
+    command: ["sudo /usr/local/bin/init-firewall.sh && exec claude --dangerously-skip-permissions"]
+
+volumes:
+  claude-code-bashhistory:
+  claude-code-config:
