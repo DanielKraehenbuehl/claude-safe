@@ -25,6 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   jq \
   nano \
   vim \
+  xclip \
+  xsel \
+  expect \
   && apt-get clean && rm -rf /var/lib/apt/lists/*
 
 # Ensure default node user has access to /usr/local/share
@@ -81,11 +84,15 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
-
-# Copy and set up firewall script
-COPY init-firewall.sh /usr/local/bin/
+# Copy and set up scripts (as root)
 USER root
-RUN chmod +x /usr/local/bin/init-firewall.sh && \
+COPY setup-clipboard.sh /usr/local/bin/
+COPY init-firewall.sh /usr/local/bin/
+COPY start-claude.sh /usr/local/bin/
+RUN chmod +x /usr/local/bin/setup-clipboard.sh && \
+  chmod +x /usr/local/bin/init-firewall.sh && \
+  chmod +x /usr/local/bin/start-claude.sh && \
+  /usr/local/bin/setup-clipboard.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/local/bin/init-firewall.sh" > /etc/sudoers.d/node-firewall && \
   chmod 0440 /etc/sudoers.d/node-firewall
 USER node

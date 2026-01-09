@@ -46,7 +46,15 @@ echo "Building Docker image..."
 echo "(This may take a few minutes on first run)"
 echo ""
 
-if docker-compose build; then
+# Check if we should force rebuild
+FORCE_REBUILD=""
+if [ "${1:-}" = "--force" ] || [ "${1:-}" = "--no-cache" ]; then
+    echo "⚠️  Forcing clean rebuild (no cache)..."
+    FORCE_REBUILD="--no-cache"
+    echo ""
+fi
+
+if docker-compose build $FORCE_REBUILD; then
     echo ""
     echo "======================================"
     echo "✅ Setup Complete!"
@@ -62,7 +70,7 @@ if docker-compose build; then
     echo ""
     echo "Claude Code will start automatically with --dangerously-skip-permissions"
     echo ""
-    echo "For more info, see README.md or QUICKSTART.md"
+    echo "For more info, see README.md"
     echo ""
 else
     echo ""

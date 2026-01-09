@@ -19,6 +19,9 @@ services:
       - NODE_OPTIONS=--max-old-space-size=4096
       - CLAUDE_CONFIG_DIR=/home/node/.claude
       - POWERLEVEL9K_DISABLE_GITSTATUS=true
+      - TERM=xterm-256color
+      - COLORTERM=truecolor
+      - FORCE_COLOR=1
     volumes:
       # Mount your project directory here
       - ${PROJECT_DIR:-.}:/workspace
@@ -32,8 +35,7 @@ services:
     user: node
     stdin_open: true
     tty: true
-    entrypoint: ["/bin/bash", "-c"]
-    command: ["sudo /usr/local/bin/init-firewall.sh && exec claude --dangerously-skip-permissions"]
+    entrypoint: ["/usr/local/bin/start-claude.sh"]
 
 volumes:
   claude-code-bashhistory:

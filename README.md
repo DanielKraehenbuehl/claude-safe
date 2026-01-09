@@ -148,9 +148,26 @@ Then rebuild the container.
 
 ## Container Lifecycle
 
-**Starting:** Run `./claude-safe.sh /path/to/project` - container starts automatically
+### Images vs Containers
 
-**Stopping:** Type `exit` or Ctrl+D in Claude Code - container stops and removes automatically
+**Image** = Template/blueprint (built by `setup.sh`)
+**Container** = Running instance (created by `claude-safe.sh`)
+
+### When to Run setup.sh
+
+Run `./setup.sh` to build/update the image:
+- ✅ First time installation
+- ✅ After `git pull` (pulling updates)
+- ✅ After modifying Dockerfile
+- ❌ NOT needed before every run
+
+**Speed:** First run takes 2-5 minutes. Subsequent runs are fast (5-30 seconds) thanks to Docker's layer caching.
+
+### Each Run Creates Fresh Container
+
+**Starting:** `./claude-safe.sh /path/to/project` - creates NEW container from image
+
+**Stopping:** Type `exit` or Ctrl+D - container stops and auto-deletes (`--rm` flag)
 
 **What's Preserved:**
 - ✅ Your authentication (in `claude-code-config` volume)
@@ -165,6 +182,68 @@ Then rebuild the container.
 You get a fresh container every time, but your config persists!
 
 ## Troubleshooting
+
+### Known Issues
+
+**Double Echo in Docker (WSL/Windows)**
+
+When running in Docker on WSL, you may see your input appear twice after pressing Enter:
+
+```
+❯ test
+
+
+❯ test
+```
+
+This is a cosmetic issue caused by Docker's TTY layer and **does not affect functionality**. Claude receives your input correctly and works normally.
+
+**Workaround:** If this bothers you, run Claude Code directly on your WSL host instead of in Docker (you'll lose container isolation but avoid the double echo).
+
+### Code Colors/Syntax Highlighting Missing
+
+If code blocks appear without colors, rebuild the container:
+
+```bash
+./setup.sh
+```
+
+The container is now configured with proper color support (`TERM=xterm-256color`).
+
+**Verify colors work:**
+```bash
+# Inside container
+ls --color=auto  # Should show colored output
+```
+
+### Copy-Paste Not Working
+
+Docker containers don't share clipboard with your host by default.
+
+**WSL Users:**
+- Use Windows Terminal: `Ctrl+Shift+C` to copy, `Ctrl+Shift+V` to paste
+- After rebuild with `./setup.sh`, use `copy` and `paste` commands inside container:
+  ```bash
+  echo "text" | copy    # Copy to Windows clipboard
+  paste                 # Paste from Windows clipboard
+  ```
+- Enable "Automatically copy selection to clipboard" in Windows Terminal settings
+
+**macOS Users:**
+- Select text with mouse, then `Cmd+C` / `Cmd+V`
+
+**Linux Users:**
+- Select text with mouse → auto-copied
+- `Shift+Insert` to paste
+
+**Or use files (works everywhere):**
+```bash
+# Inside container
+echo "output" > /workspace/result.txt
+
+# On host
+cat /path/to/project/result.txt
+```
 
 ### Web Login Fails
 
@@ -232,6 +311,7 @@ Even with Docker + firewall + skip permissions:
 .
 ├── setup.sh               # One-command setup script
 ├── claude-safe.sh         # Run Claude safely in container
+├── setup-clipboard.sh     # Clipboard integration setup
 ├── docker-compose.yml     # Docker orchestration
 ├── Dockerfile             # Container image definition
 ├── init-firewall.sh       # Network firewall script
@@ -240,8 +320,7 @@ Even with Docker + firewall + skip permissions:
 ├── .gitignore             # Git ignore rules
 ├── LICENSE                # MIT License
 ├── CONTRIBUTORS.md        # Author and contributors
-├── README.md              # This file
-└── QUICKSTART.md          # Detailed setup guide
+└── README.md              # This file
 ```
 
 ## Requirements
