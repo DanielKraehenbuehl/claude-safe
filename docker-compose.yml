@@ -28,6 +28,8 @@ services:
       # Persistent volumes for history and config
       - claude-code-bashhistory:/commandhistory
       - claude-code-config:/home/node/.claude
+      # Mount Docker socket for Docker access
+      - /var/run/docker.sock:/var/run/docker.sock
     ports:
       # Expose port for OAuth callback during web-based login
       - "38714:38714"

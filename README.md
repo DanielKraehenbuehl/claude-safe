@@ -135,7 +135,14 @@ PROJECT_DIR=/path/to/your/project
 
 ### Customize Allowed Domains
 
-Edit `init-firewall.sh` around line 67 to add domains:
+The firewall allows these domains by default:
+- **GitHub** (api.github.com, github.com, raw.githubusercontent.com)
+- **npm** (registry.npmjs.org)
+- **Anthropic** (api.anthropic.com)
+- **Microsoft** (packages.microsoft.com) - for .NET SDK
+- **Python** (pypi.org, files.pythonhosted.org) - for pip packages
+
+To add custom domains, edit `init-firewall.sh` around line 67:
 
 ```bash
 for domain in \
@@ -144,7 +151,7 @@ for domain in \
     "your-custom-domain.com"; do
 ```
 
-Then rebuild the container.
+Then rebuild the container with `./setup.sh`.
 
 ## Container Lifecycle
 
@@ -279,8 +286,23 @@ curl https://google.com
 
 ### Permission Errors
 
-The container runs as the `node` user. For root access:
+The container runs as the `node` user with passwordless sudo access to common package managers:
 
+**Allowed without password:**
+- `sudo apt-get`, `sudo apt`, `sudo dpkg` (install system packages like .NET)
+- `sudo pip3`, `sudo pip` (install Python packages like Robot Framework)
+- `sudo npm` (install Node packages globally)
+- `sudo add-apt-repository` (add package repositories)
+
+**Example:**
+```bash
+# Claude can run these directly
+sudo apt-get install dotnet-sdk-8.0
+sudo pip3 install robotframework
+sudo npm install -g typescript
+```
+
+For full root access (if needed):
 ```bash
 docker-compose run --rm --user root claude-code
 ```
@@ -288,11 +310,13 @@ docker-compose run --rm --user root claude-code
 ## What's Included
 
 - **Node.js 20** with npm
-- **Python 3.11** (pip not included by default)
+- **Python 3.11** with pip3
 - **Git** with GitHub CLI (`gh`)
-- **Development tools**: zsh, fzf, vim, nano, jq
+- **Docker CLI** with BuildX and Compose plugins (BuildKit enabled by default)
+- **Development tools**: zsh, fzf, vim, nano, jq, wget, curl
 - **Network tools**: iptables, ipset for firewall
 - **Claude Code** (latest version)
+- **Sudo access** to package managers (apt, pip, npm) for installing additional tools
 
 ## Security Considerations
 

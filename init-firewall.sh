@@ -48,8 +48,17 @@ if [ -z "$gh_ranges" ]; then
     exit 1
 fi
 
-if ! echo "$gh_ranges" | jq -e '.web and .api and .git' >/dev/null; then
+if ! echo "$gh_ranges" | jq -e '.web and .api and .git' >/dev/null 2>&1; then
     echo "ERROR: GitHub API response missing required fields"
+    echo "API Response:"
+    echo "$gh_ranges" | jq '.'
+    echo ""
+    echo "This is likely due to GitHub API rate limiting."
+    echo "Solutions:"
+    echo "  1. Wait ~1 hour for the rate limit to reset"
+    echo "  2. Add GitHub authentication to increase rate limits:"
+    echo "     Modify line 45 in init-firewall.sh to:"
+    echo "     gh_ranges=\$(curl -s -H \"Authorization: token YOUR_TOKEN\" https://api.github.com/meta)"
     exit 1
 fi
 
@@ -72,7 +81,10 @@ for domain in \
     "statsig.com" \
     "marketplace.visualstudio.com" \
     "vscode.blob.core.windows.net" \
-    "update.code.visualstudio.com"; do
+    "update.code.visualstudio.com" \
+    "packages.microsoft.com" \
+    "pypi.org" \
+    "files.pythonhosted.org"; do
     echo "Resolving $domain..."
     ips=$(dig +noall +answer A "$domain" | awk '$4 == "A" {print $5}')
     if [ -z "$ips" ]; then
