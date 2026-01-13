@@ -18,8 +18,13 @@ if ! command -v docker &> /dev/null; then
     exit 1
 fi
 
-# Check for Docker Compose
-if ! command -v docker-compose &> /dev/null && ! docker compose version &> /dev/null; then
+# Check for Docker Compose (v1 or v2)
+COMPOSE_CMD=()
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD=(docker-compose)
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD=(docker compose)
+else
     echo "❌ Error: Docker Compose is not installed"
     echo "   Please install Docker Compose from: https://docs.docker.com/compose/install/"
     exit 1
@@ -54,7 +59,7 @@ if [ "${1:-}" = "--force" ] || [ "${1:-}" = "--no-cache" ]; then
     echo ""
 fi
 
-if docker-compose build $FORCE_REBUILD; then
+if "${COMPOSE_CMD[@]}" build $FORCE_REBUILD; then
     echo ""
     echo "======================================"
     echo "✅ Setup Complete!"

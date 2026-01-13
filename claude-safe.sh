@@ -24,6 +24,18 @@ fi
 PROJECT_DIR="$1"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 
+# Choose Docker Compose (v1 or v2)
+COMPOSE_CMD=()
+if command -v docker-compose &> /dev/null; then
+    COMPOSE_CMD=(docker-compose)
+elif docker compose version &> /dev/null; then
+    COMPOSE_CMD=(docker compose)
+else
+    echo "❌ Error: Docker Compose is not installed"
+    echo "   Please install Docker Compose from: https://docs.docker.com/compose/install/"
+    exit 1
+fi
+
 # Check if project directory exists
 if [ ! -d "$PROJECT_DIR" ]; then
     echo "❌ Error: Directory not found: $PROJECT_DIR"
@@ -49,7 +61,7 @@ echo "⚡ Running with --dangerously-skip-permissions"
 echo ""
 
 # Run the container with Claude Code automatically starting
-docker-compose -f "$COMPOSE_FILE" run --rm claude-code
+"${COMPOSE_CMD[@]}" -f "$COMPOSE_FILE" run --rm claude-code
 
 # Cleanup
 echo ""
