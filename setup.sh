@@ -75,6 +75,13 @@ if "${COMPOSE_CMD[@]}" build $FORCE_REBUILD; then
     echo ""
     echo "Claude Code will start automatically with --dangerously-skip-permissions"
     echo ""
+    echo "💡 Tip: Create an alias for easier access:"
+    echo ""
+    echo "  echo \"alias claude='$(pwd)/claude-safe.sh'\" >> ~/.bashrc"
+    echo "  source ~/.bashrc"
+    echo ""
+    echo "Then just run 'claude' from any project directory!"
+    echo ""
     echo "For more info, see README.md"
     echo ""
 else

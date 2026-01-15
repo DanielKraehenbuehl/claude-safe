@@ -53,6 +53,34 @@ https://api.anthropic.com/oauth/authorize?...
 3. Authorize the application
 4. Done! Your authentication is saved for future sessions
 
+### 4. Create an Alias (Recommended)
+
+For easier access, create a `claude` alias that points to the containerized version. This is especially useful if Claude Code is not installed on your host machine.
+
+**Add to your shell config** (`~/.bashrc`, `~/.zshrc`, etc.):
+
+```bash
+alias claude='/path/to/claude-safe/claude-safe.sh'
+```
+
+**Reload your shell:**
+```bash
+source ~/.bashrc  # or ~/.zshrc
+```
+
+**Now you can run from any project directory:**
+```bash
+cd ~/my-project
+claude  # Runs containerized Claude Code in current directory
+```
+
+**VS Code Integration:**
+With the alias in place, VS Code and other tools can invoke the containerized Claude Code when they try to run the `claude` command. This gives you the benefits of:
+- Container isolation and security
+- Network restrictions via firewall
+- Consistent environment across projects
+- No need to install Claude Code on your host
+
 ## How It Works
 
 - Your project directory is **automatically mounted** at `/workspace`
@@ -232,9 +260,18 @@ deploy:
       memory: 4G
 ```
 
-### VS Code Dev Container
+### VS Code Integration
 
-Copy these files to `.devcontainer/` in your project, then use VS Code's "Reopen in Container" command.
+**Option 1: Using the Alias (Recommended)**
+
+If you've created the `claude` alias as described in the Quick Start, VS Code extensions and integrated terminals can invoke the containerized Claude Code directly. This works seamlessly with:
+- VS Code's integrated terminal
+- Extensions that call the `claude` command
+- Task runners and build scripts
+
+**Option 2: Dev Container**
+
+For a full VS Code development environment inside the container, copy the included `devcontainer.json` to `.devcontainer/` in your project, then use VS Code's "Reopen in Container" command.
 
 ## Configuration
 
