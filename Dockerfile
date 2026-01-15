@@ -114,7 +114,8 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
 
 # Install get-shit-done framework for structured development workflows
-RUN npx get-shit-done-cc --global
+RUN npx --yes get-shit-done-cc --global && \
+    test -d /home/node/.claude/commands/gsd || (echo "GSD installation failed" && exit 1)
 
 # Install pre-commit using pipx
 RUN pipx install pre-commit

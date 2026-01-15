@@ -448,21 +448,35 @@ curl https://google.com
 
 If `/gsd:*` commands don't work:
 
-**Verify GSD is installed:**
+**First, verify GSD is installed:**
 ```bash
-ls -la ~/.claude/skills/
-# Should see gsd-related directories
+ls -la ~/.claude/commands/gsd/
+# Should show 27 command files (new-project.js, define-requirements.js, etc.)
 ```
 
-**Reinstall if needed:**
+**If the directory doesn't exist, rebuild the container:**
+
+The Dockerfile has been fixed to properly install GSD with `npx --yes`. Rebuild to apply the fix:
+
 ```bash
-npx get-shit-done-cc --global
+./setup.sh --force
+```
+
+**Manual installation (if needed):**
+```bash
+npx --yes get-shit-done-cc --global
+```
+
+**Verify installation worked:**
+```bash
+ls ~/.claude/commands/gsd/ | wc -l
+# Should output: 27
 ```
 
 **Check Claude Code version:**
 ```bash
 claude --version
-# GSD requires Claude Code with skill support
+# GSD requires Claude Code with skill support (v0.7.0+)
 ```
 
 ### GSD State Not Persisting
