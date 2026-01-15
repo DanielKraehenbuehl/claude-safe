@@ -8,6 +8,9 @@ ARG CLAUDE_CODE_VERSION=latest
 # Install basic development tools and iptables/ipset
 RUN apt-get update && apt-get install -y --no-install-recommends \
   less \
+  grep \
+  coreutils \
+  ripgrep \
   git \
   procps \
   sudo \
@@ -29,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
   xsel \
   expect \
   python3-pip \
+  pipx \
   wget \
   curl \
   ca-certificates \
@@ -77,7 +81,7 @@ USER node
 
 # Install global packages
 ENV NPM_CONFIG_PREFIX=/usr/local/share/npm-global
-ENV PATH=$PATH:/usr/local/share/npm-global/bin
+ENV PATH=$PATH:/usr/local/share/npm-global/bin:/home/node/.local/bin
 
 # Set the default shell to zsh rather than sh
 ENV SHELL=/bin/zsh
@@ -102,6 +106,9 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+
+# Install pre-commit using pipx
+RUN pipx install pre-commit
 
 # Pre-configure SSH known_hosts for common git services
 RUN mkdir -p /home/node/.ssh && \
@@ -129,6 +136,7 @@ RUN chmod +x /usr/local/bin/setup-clipboard.sh && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/dpkg" >> /etc/sudoers.d/node-installers && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/pip3" >> /etc/sudoers.d/node-installers && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/pip" >> /etc/sudoers.d/node-installers && \
+  echo "node ALL=(root) NOPASSWD: /usr/bin/pipx" >> /etc/sudoers.d/node-installers && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/add-apt-repository" >> /etc/sudoers.d/node-installers && \
   echo "node ALL=(root) NOPASSWD: /usr/local/share/npm-global/bin/npm" >> /etc/sudoers.d/node-installers && \
   echo "node ALL=(root) NOPASSWD: /usr/bin/docker" >> /etc/sudoers.d/node-installers && \
