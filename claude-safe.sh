@@ -9,19 +9,12 @@ set -euo pipefail
 # Get the directory where this script is located
 SCRIPT_DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
 
-# Check if project path is provided
+# Use current directory if no project path is provided
 if [ $# -eq 0 ]; then
-    echo "❌ Error: Project directory required"
-    echo ""
-    echo "Usage: $0 /path/to/project"
-    echo ""
-    echo "Example:"
-    echo "  $0 ."
-    echo "  $0 /home/user/my-project"
-    exit 1
+    PROJECT_DIR="."
+else
+    PROJECT_DIR="$1"
 fi
-
-PROJECT_DIR="$1"
 COMPOSE_FILE="$SCRIPT_DIR/docker-compose.yml"
 
 # Choose Docker Compose (v1 or v2)

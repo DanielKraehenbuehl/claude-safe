@@ -24,14 +24,17 @@ That's it! The setup script will check dependencies and build the container.
 
 ### 2. Run Claude Code on Your Project
 
+From your project directory:
+
 ```bash
-./claude-safe.sh /path/to/your/project
+cd /path/to/your/project
+/path/to/claude-safe/claude-safe.sh
 ```
 
-Or from your project directory:
+Or specify a project path:
 
 ```bash
-/path/to/claude-code-docker/claude-safe.sh .
+./claude-safe.sh /path/to/your/project
 ```
 
 That's it! Claude Code starts automatically with `--dangerously-skip-permissions` enabled.
@@ -61,8 +64,12 @@ https://api.anthropic.com/oauth/authorize?...
 
 **Example:**
 ```bash
-# You run this on your host
+# Option 1: Specify a project path
 ./claude-safe.sh ~/my-app
+
+# Option 2: Run from your project directory
+cd ~/my-app
+/path/to/claude-safe/claude-safe.sh
 
 # Claude automatically starts in /workspace (which is ~/my-app)
 # Any files Claude creates/modifies appear instantly in ~/my-app
@@ -111,7 +118,8 @@ The container includes the **get-shit-done (GSD)** framework for structured, spe
 ### Quick Start Workflow
 
 ```bash
-./claude-safe.sh ~/my-new-app
+cd ~/my-new-app
+/path/to/claude-safe/claude-safe.sh
 
 # Inside Claude Code:
 /gsd:new-project
@@ -194,7 +202,7 @@ If you prefer using an API key:
 
 ```bash
 echo "ANTHROPIC_API_KEY=your-key-here" > .env
-./claude-safe.sh /path/to/project
+./claude-safe.sh  # Uses current directory, or specify a path
 ```
 
 ### Docker Compose Directly
@@ -287,7 +295,7 @@ Run `./setup.sh` to build/update the image:
 
 ### Each Run Creates Fresh Container
 
-**Starting:** `./claude-safe.sh /path/to/project` - creates NEW container from image
+**Starting:** `./claude-safe.sh` (uses current directory) or `./claude-safe.sh /path/to/project` - creates NEW container from image
 
 **Stopping:** Type `exit` or Ctrl+D - container stops and auto-deletes (`--rm` flag)
 
