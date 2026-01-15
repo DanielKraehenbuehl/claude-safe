@@ -1,4 +1,4 @@
-# Claude Code Docker Container
+# Claude Code Safe
 
 Run [Claude Code](https://github.com/anthropics/claude-code) in a sandboxed Docker container with network restrictions and skip-permission mode.
 
@@ -70,6 +70,121 @@ https://api.anthropic.com/oauth/authorize?...
 
 **Exiting:**
 When you exit Claude Code (type `exit` or Ctrl+D), the container automatically stops and removes itself. Don't worry - your authentication and command history are preserved in Docker volumes for next time!
+
+## Using get-shit-done Workflows
+
+The container includes the **get-shit-done (GSD)** framework for structured, spec-driven development. GSD solves "context rot" by maintaining project specifications and breaking work into atomic tasks with isolated execution.
+
+### Why Use GSD?
+
+- **Structured Planning**: Define requirements, create roadmaps, and plan phases systematically
+- **Quality Consistency**: Each task runs in a fresh context window, preventing quality degradation
+- **Atomic Commits**: Individual tasks produce separate, traceable git commits
+- **Parallel Execution**: Run multiple agents concurrently for faster development
+- **Session Persistence**: Project state persists across container restarts
+
+### Available Commands
+
+**Project Setup:**
+- `/gsd:new-project` - Extract project ideas through guided questioning
+- `/gsd:research-project` - Investigate domain ecosystems and best practices
+- `/gsd:define-requirements` - Scope features across versions (MVP, v2, v3...)
+- `/gsd:create-roadmap` - Structure development phases with requirement mapping
+- `/gsd:map-codebase` - Analyze existing codebases for brownfield projects
+
+**Execution & Delivery:**
+- `/gsd:plan-phase` - Generate atomic task plans with XML structure
+- `/gsd:execute-phase` - Run parallel agents for concurrent work
+- `/gsd:execute-plan` - Interactive single-plan execution
+- `/gsd:complete-milestone` - Ship versions and prepare next iterations
+
+**Phase Management:**
+- `/gsd:add-phase` - Add new phase to roadmap
+- `/gsd:insert-phase` - Insert phase at specific position
+- `/gsd:verify-work` - Verify completed work meets requirements
+- `/gsd:plan-fix` - Plan fixes for verification failures
+
+**Session Persistence:**
+- `/gsd:pause-work` - Save current state for later
+- `/gsd:resume-work` - Resume from saved state
+
+### Quick Start Workflow
+
+```bash
+./claude-safe.sh ~/my-new-app
+
+# Inside Claude Code:
+/gsd:new-project
+# Answer guided questions about your project vision
+
+/gsd:define-requirements
+# Define features for MVP and future versions
+
+/gsd:create-roadmap
+# Structure implementation into logical phases
+
+/gsd:plan-phase
+# Generate detailed task plan for Phase 1
+
+/gsd:execute-phase
+# Execute all tasks with atomic git commits
+
+/gsd:complete-milestone
+# Ship MVP and prepare for next version
+```
+
+### How GSD Works in claude-safe
+
+**Context Management:**
+GSD maintains these specification files in your project:
+- `PROJECT.md` - Project vision and overview
+- `REQUIREMENTS.md` - Versioned feature requirements
+- `ROADMAP.md` - Phase structure and task mapping
+- `STATE.md` - Current execution state
+
+**Persistent Storage:**
+- Global GSD config stored in Docker volume (`~/.claude/`)
+- Project-specific files stored in `/workspace` (your mounted directory)
+- Both survive container restarts
+
+**Execution Model:**
+- Each task runs in a fresh 200k-token context
+- Parallel agents execute concurrently for speed
+- All operations respect claude-safe's firewall restrictions
+- Atomic commits enable surgical version control
+
+### Example: Building a New Feature
+
+```bash
+# Plan a new authentication feature
+/gsd:add-phase
+# Name: "User Authentication"
+# Add requirements: login, signup, password reset
+
+/gsd:plan-phase
+# Review generated XML plan with atomic tasks
+
+/gsd:execute-phase
+# Watch parallel agents implement tasks
+# Each task creates a separate git commit
+
+/gsd:verify-work
+# Run tests and verify requirements met
+```
+
+### Tips for Using GSD
+
+- **Start Small**: Begin with `/gsd:new-project` even for existing projects to document vision
+- **Version Everything**: Use `/gsd:define-requirements` to plan MVP, v2, v3 upfront
+- **Atomic Tasks**: Keep tasks small and focused for better parallel execution
+- **Verify Often**: Use `/gsd:verify-work` after each phase to catch issues early
+- **Commit Messages**: GSD generates descriptive commits automatically
+
+### Learn More
+
+- **GSD Repository**: https://github.com/glittercowboy/get-shit-done
+- **Help Command**: Type `/gsd:help` inside Claude Code
+- **Troubleshooting**: See GSD section in Troubleshooting below
 
 ## Advanced Usage
 
@@ -284,6 +399,62 @@ curl https://api.github.com
 curl https://google.com
 ```
 
+### get-shit-done Commands Not Found
+
+If `/gsd:*` commands don't work:
+
+**Verify GSD is installed:**
+```bash
+ls -la ~/.claude/skills/
+# Should see gsd-related directories
+```
+
+**Reinstall if needed:**
+```bash
+npx get-shit-done-cc --global
+```
+
+**Check Claude Code version:**
+```bash
+claude --version
+# GSD requires Claude Code with skill support
+```
+
+### GSD State Not Persisting
+
+If GSD forgets your project state between container restarts:
+
+**Check volume mounts:**
+```bash
+docker volume ls
+# Should see: claude-code-config
+```
+
+**Verify PROJECT.md exists:**
+```bash
+ls -la /workspace/PROJECT.md
+# Should exist in your mounted project directory
+```
+
+### GSD Agents Slow or Timeout
+
+If GSD parallel execution is slow:
+
+**Add resource limits** in `docker-compose.yml`:
+```yaml
+deploy:
+  resources:
+    limits:
+      cpus: '4'
+      memory: 8G
+```
+
+**Check network restrictions:**
+```bash
+# GSD agents may need additional domains
+# Review init-firewall.sh and add if needed
+```
+
 ### Permission Errors
 
 The container runs as the `node` user with passwordless sudo access to common package managers:
@@ -316,6 +487,8 @@ docker-compose run --rm --user root claude-code
 - **Development tools**: zsh, fzf, vim, nano, jq, wget, curl
 - **Network tools**: iptables, ipset for firewall
 - **Claude Code** (latest version)
+- **get-shit-done framework** - Structured development workflows with slash commands
+- **pre-commit** - Git hook framework for code quality
 - **Sudo access** to package managers (apt, pip, npm) for installing additional tools
 
 ## Security Considerations

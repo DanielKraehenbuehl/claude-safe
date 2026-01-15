@@ -76,6 +76,12 @@ RUN ARCH=$(dpkg --print-architecture) && \
   sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
+# Install yq for YAML processing
+ARG YQ_VERSION=4.44.3
+RUN ARCH=$(dpkg --print-architecture) && \
+  wget "https://github.com/mikefarah/yq/releases/download/v${YQ_VERSION}/yq_linux_${ARCH}" -O /usr/local/bin/yq && \
+  chmod +x /usr/local/bin/yq
+
 # Set up non-root user
 USER node
 
@@ -106,6 +112,9 @@ RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/
 
 # Install Claude
 RUN npm install -g @anthropic-ai/claude-code@${CLAUDE_CODE_VERSION}
+
+# Install get-shit-done framework for structured development workflows
+RUN npx get-shit-done-cc --global
 
 # Install pre-commit using pipx
 RUN pipx install pre-commit
