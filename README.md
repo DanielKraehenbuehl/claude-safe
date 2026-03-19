@@ -206,8 +206,18 @@ deploy:
 ### Direct Docker Compose
 
 ```bash
-PROJECT_DIR=/path/to/project docker-compose run --rm claude-code
+PROJECT_DIR=/path/to/project docker compose run --rm claude-code
 ```
+
+For git worktrees, also set `GIT_PARENT_REPO` to the main repository:
+
+```bash
+PROJECT_DIR=/path/to/worktree \
+GIT_PARENT_REPO=/path/to/main/repo \
+docker compose run --rm claude-code
+```
+
+If you use `./claude-safe.sh`, `GIT_PARENT_REPO` is auto-detected for worktrees.
 
 ### VS Code Dev Container
 

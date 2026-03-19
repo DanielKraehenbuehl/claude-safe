@@ -23,7 +23,12 @@ services:
     volumes:
       # Mount your project directory here
       - ${PROJECT_DIR:-.}:/workspace
-      # Persistent volumes for history and config
+      # For git worktrees: mount the parent repo (defaults to PROJECT_DIR when not set)
+      - ${GIT_PARENT_REPO:-${PROJECT_DIR:-.}}:/git-parent-repo
+      # Import SSH keys and Claude auth from host without masking image content
+      - ~/.ssh:/host-ssh:ro
+      - ~/.claude:/host-claude:ro
+      # Persistent volumes for history and Claude config
       - claude-code-bashhistory:/commandhistory
       - claude-code-config:/home/node/.claude
       # Mount Docker socket for Docker access

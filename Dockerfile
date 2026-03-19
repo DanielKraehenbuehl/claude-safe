@@ -120,18 +120,16 @@ RUN npx --yes get-shit-done-cc --global && \
 # Install pre-commit using pipx
 RUN pipx install pre-commit
 
-# Pre-configure SSH known_hosts for common git services
-RUN mkdir -p /home/node/.ssh && \
-    ssh-keyscan -t rsa github.com >> /home/node/.ssh/known_hosts 2>/dev/null && \
-    ssh-keyscan -t rsa ssh.dev.azure.com >> /home/node/.ssh/known_hosts 2>/dev/null && \
-    ssh-keyscan -t rsa gitlab.com >> /home/node/.ssh/known_hosts 2>/dev/null && \
-    ssh-keyscan -t rsa bitbucket.org >> /home/node/.ssh/known_hosts 2>/dev/null && \
-    chown -R node:node /home/node/.ssh && \
-    chmod 700 /home/node/.ssh && \
-    chmod 600 /home/node/.ssh/known_hosts
-
 # Copy and set up scripts (as root)
 USER root
+
+# Pre-configure system-wide SSH known_hosts for common git services
+# Stored in /etc/ssh/ so they persist even when ~/.ssh is bind-mounted from the host
+RUN ssh-keyscan -t rsa github.com >> /etc/ssh/ssh_known_hosts 2>/dev/null || true && \
+    ssh-keyscan -t rsa ssh.dev.azure.com >> /etc/ssh/ssh_known_hosts 2>/dev/null || true && \
+    ssh-keyscan -t rsa gitlab.com >> /etc/ssh/ssh_known_hosts 2>/dev/null || true && \
+    ssh-keyscan -t rsa bitbucket.org >> /etc/ssh/ssh_known_hosts 2>/dev/null || true
+
 COPY setup-clipboard.sh /usr/local/bin/
 COPY init-firewall.sh /usr/local/bin/
 COPY start-claude.sh /usr/local/bin/
