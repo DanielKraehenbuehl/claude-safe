@@ -133,7 +133,10 @@ RUN ssh-keyscan -t rsa github.com >> /etc/ssh/ssh_known_hosts 2>/dev/null || tru
 COPY setup-clipboard.sh /usr/local/bin/
 COPY init-firewall.sh /usr/local/bin/
 COPY start-claude.sh /usr/local/bin/
-RUN chmod +x /usr/local/bin/setup-clipboard.sh && \
+RUN sed -i 's/\r$//' /usr/local/bin/setup-clipboard.sh \
+                      /usr/local/bin/init-firewall.sh \
+                      /usr/local/bin/start-claude.sh && \
+  chmod +x /usr/local/bin/setup-clipboard.sh && \
   chmod +x /usr/local/bin/init-firewall.sh && \
   chmod +x /usr/local/bin/start-claude.sh && \
   /usr/local/bin/setup-clipboard.sh && \
