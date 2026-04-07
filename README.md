@@ -39,6 +39,9 @@ cd /path/to/your/project
 
 # Or specify path
 ./claude-safe.sh /path/to/your/project
+
+# Multiple repositories (mounted as named subdirectories)
+./claude-safe.sh /path/to/repo-a /path/to/repo-b
 ```
 
 Claude Code starts automatically with `--dangerously-skip-permissions` enabled.
@@ -171,6 +174,24 @@ Type `/gsd:help` inside Claude Code for full command list.
 
 ## Advanced Usage
 
+### Multi-Repository Support
+
+Mount multiple repositories in a single session. Each repo is available as a named subdirectory under `/workspace`:
+
+```bash
+./claude-safe.sh /path/to/backend /path/to/frontend /path/to/shared-lib
+```
+
+Inside the container:
+```
+/workspace/
+├── backend/     → /path/to/backend
+├── frontend/    → /path/to/frontend
+└── shared-lib/  → /path/to/shared-lib
+```
+
+Git worktrees are auto-detected: the parent repository is mounted alongside the worktree so git commands work correctly.
+
 ### Using an API Key
 
 If you prefer API key authentication over web login:
@@ -219,20 +240,43 @@ docker compose run --rm claude-code
 
 If you use `./claude-safe.sh`, `GIT_PARENT_REPO` is auto-detected for worktrees.
 
+### Git Credential Handling
+
+The container automatically configures git credentials at startup:
+
+- **SSH keys** from `~/.ssh` are synced read-only into the container
+- **GitHub tokens** (`GH_TOKEN` / `GITHUB_TOKEN`) are forwarded and used as `GIT_ASKPASS` credentials
+- **Azure DevOps tokens** (`AZURE_DEVOPS_TOKEN`) are similarly forwarded for private Azure repos
+- Your `~/.gitconfig` is synced and processed so `credential.helper` entries don't conflict with the container environment
+
+No manual credential setup is required for standard GitHub and Azure DevOps workflows.
+
+### Browser OAuth Relay
+
+The container handles web-based Claude login without requiring `docker exec` or host docker group membership:
+
+1. A Python Unix socket relay in the container listens for browser-open requests from Claude Code
+2. The host-side `claude-safe.sh` proxies those requests over port 38714 and opens your default browser
+3. OAuth callbacks are relayed back to the container's local server
+
+This means authentication works transparently even when running as a non-privileged user on the host.
+
 ### VS Code Dev Container
 
 For full VS Code development environment inside the container, copy the included `devcontainer.json` to `.devcontainer/` in your project, then use "Reopen in Container".
 
 ### Customize Allowed Domains
 
-The firewall allows these domains by default:
-- GitHub (api.github.com, github.com, raw.githubusercontent.com)
-- npm (registry.npmjs.org)
-- Anthropic (api.anthropic.com, sentry.io, statsig.anthropic.com)
-- Microsoft (packages.microsoft.com, marketplace.visualstudio.com)
-- Python (pypi.org, files.pythonhosted.org)
+The firewall allows these destinations by default:
+- **GitHub** — IP ranges fetched live from `api.github.com/meta` at container startup (covers all GitHub web, API, and git endpoints)
+- **npm** — `registry.npmjs.org`
+- **Anthropic** — `api.anthropic.com`, `sentry.io`, `statsig.anthropic.com`
+- **Microsoft** — `packages.microsoft.com`, `marketplace.visualstudio.com`, `vscode.blob.core.windows.net`, `update.code.visualstudio.com`
+- **Python** — `pypi.org`, `files.pythonhosted.org`
 
-To add custom domains, edit `init-firewall.sh` around line 76:
+GitHub IPs are resolved dynamically each time the container starts (using the official GitHub meta API), so the whitelist stays accurate without rebuilds.
+
+To add custom domains, edit `init-firewall.sh` — find the `for domain in \` loop for DNS-resolved domains:
 
 ```bash
 for domain in \
@@ -421,18 +465,53 @@ Even with Docker + firewall + skip permissions:
 - ❌ Claude **cannot** install packages on your host
 - ❌ Claude **cannot** access most internet sites (firewall restricted)
 
+## Testing
+
+The project includes a [bats-core](https://github.com/bats-core/bats-core) test suite covering the main shell scripts.
+
+### Run Tests
+
+```bash
+bash tests/run_tests.sh
+```
+
+The runner installs bats-core automatically if it's not already available.
+
+### Test Structure
+
+```
+tests/
+├── helpers/
+│   ├── common.bash          # Shared setup/teardown utilities
+│   └── stubs.bash           # Docker and CLI mock stubs
+├── unit/
+│   ├── normalize_path.bats  # Path normalization logic
+│   └── win_to_wsl_path.bats # Windows-to-WSL path conversion
+└── integration/
+    ├── args.bats            # CLI argument parsing
+    ├── browser_setup.bats   # OAuth browser relay setup
+    ├── cleanup.bats         # Temp file cleanup on exit
+    ├── compose_detection.bats # Docker Compose v1/v2 detection
+    ├── git_worktree.bats    # Git worktree auto-detection
+    ├── multi_repo.bats      # Multi-repository mounting
+    └── path_fallback.bats   # PATH and .env fallback logic
+```
+
+Tests run automatically on push and pull requests via GitHub Actions.
+
 ## Files in This Repo
 
 ```
 .
 ├── setup.sh               # One-command setup script
-├── claude-safe.sh         # Run Claude safely in container
-├── setup-clipboard.sh     # Clipboard integration setup
+├── claude-safe.sh         # Run Claude safely in container (main entry point)
+├── start-claude.sh        # Container entrypoint (runs inside Docker)
+├── init-firewall.sh       # Network firewall / domain whitelist script
+├── setup-clipboard.sh     # WSL clipboard integration setup
 ├── docker-compose.yml     # Docker orchestration
 ├── Dockerfile             # Container image definition
-├── init-firewall.sh       # Network firewall script
-├── start-claude.sh        # Container entrypoint
 ├── devcontainer.json      # VS Code Dev Container config
+├── tests/                 # bats-core test suite
 ├── .env.example           # Environment variables template
 ├── .gitignore             # Git ignore rules
 ├── LICENSE                # MIT License
@@ -447,9 +526,12 @@ Issues and pull requests welcome! Please ensure:
 - Security features are preserved
 - Documentation stays beginner-friendly
 
-## Author
+## Authors
 
-**Daniel Krähenbühl** - Hamilton Medical AG
+**Daniel Krähenbühl** — Hamilton Medical AG  
+**Tony Rosén** — Hamilton Medical AG
+
+See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the full list.
 
 ## Credits
 

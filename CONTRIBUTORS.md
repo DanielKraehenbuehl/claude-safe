@@ -1,10 +1,18 @@
 # Contributors
 
-## Author
+## Authors
+
+**Claude Code**
+Anthropic
+https://claude.ai/code
 
 **Daniel Krähenbühl**
 Hamilton Medical AG
 https://github.com/dkraehenbuehl
+
+**Tony Rosén**
+Hamilton Medical AG
+https://github.com/qmwtrn
 
 ## Acknowledgments
 
