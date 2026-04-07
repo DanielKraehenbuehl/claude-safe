@@ -2,8 +2,8 @@
 # Wrapper script to start Claude with proper terminal settings
 
 sync_host_ssh() {
-    local host_ssh="/host-ssh"
-    local target_ssh="/home/node/.ssh"
+    local host_ssh="${_TEST_HOST_SSH:-/host-ssh}"
+    local target_ssh="${_TEST_TARGET_SSH:-/home/node/.ssh}"
     local file
     local base
 
@@ -46,7 +46,8 @@ sync_host_ssh() {
 }
 
 sync_host_gitconfig() {
-    local src="/host-gitconfig"
+    local src="${_TEST_GITCONFIG_SRC:-/host-gitconfig}"
+    local target_gitconfig="${_TEST_GITCONFIG_TARGET:-/home/node/.gitconfig}"
 
     if [ -d "$src" ]; then
         # Docker created an empty directory because the file didn't exist on the host.
@@ -60,12 +61,12 @@ sync_host_gitconfig() {
     fi
 
     if [ -f "$src" ]; then
-        cp "$src" /home/node/.gitconfig
+        cp "$src" "$target_gitconfig"
         # Remove all credential helpers from the copied config. The container
         # cannot use host-side helpers (e.g. git-credential-manager) because
         # those binaries do not exist here. Authentication is handled via
         # GIT_ASKPASS instead (configured by setup_git_credentials below).
-        git config --file /home/node/.gitconfig --remove-section credential 2>/dev/null || true
+        git config --file "$target_gitconfig" --remove-section credential 2>/dev/null || true
     fi
 }
 
@@ -83,7 +84,7 @@ setup_git_credentials() {
     # git only calls this script for the password.
     # Azure DevOps remotes also embed the username in the URL.
     if [ -n "${GH_TOKEN:-}" ] || [ -n "${AZURE_FEED_PAT:-}" ]; then
-        local askpass="/tmp/git-askpass"
+        local askpass="${_TEST_ASKPASS:-/tmp/git-askpass}"
         cat > "$askpass" << 'ASKPASS_EOF'
 #!/bin/sh
 case "$1" in
@@ -97,15 +98,15 @@ esac
 ASKPASS_EOF
         chmod +x "$askpass"
         export GIT_ASKPASS="$askpass"
-        [ -n "${GH_TOKEN:-}" ]        && echo "GitHub token authentication configured (GIT_ASKPASS)"
-        [ -n "${AZURE_FEED_PAT:-}" ]  && echo "Azure DevOps PAT authentication configured (GIT_ASKPASS)"
+        [ -n "${GH_TOKEN:-}" ]        && echo "GitHub token authentication configured (GIT_ASKPASS)" || true
+        [ -n "${AZURE_FEED_PAT:-}" ]  && echo "Azure DevOps PAT authentication configured (GIT_ASKPASS)" || true
     fi
 }
 
 sync_host_claude_auth() {
-    local host_claude="/host-claude"
+    local host_claude="${_TEST_HOST_CLAUDE:-/host-claude}"
     local source_credentials="$host_claude/.credentials.json"
-    local target_claude="/home/node/.claude"
+    local target_claude="${_TEST_TARGET_CLAUDE:-/home/node/.claude}"
 
     if [ ! -f "$source_credentials" ]; then
         return
@@ -116,9 +117,9 @@ sync_host_claude_auth() {
 }
 
 sync_host_claude_settings() {
-    local host_claude="/host-claude"
+    local host_claude="${_TEST_HOST_CLAUDE:-/host-claude}"
     local source_settings="$host_claude/settings.json"
-    local target_claude="/home/node/.claude"
+    local target_claude="${_TEST_TARGET_CLAUDE:-/home/node/.claude}"
 
     if [ ! -f "$source_settings" ]; then
         return
@@ -129,9 +130,10 @@ sync_host_claude_settings() {
 }
 
 ensure_superpowers_plugin() {
-    local settings="/home/node/.claude/settings.json"
+    local target_claude="${_TEST_TARGET_CLAUDE:-/home/node/.claude}"
+    local settings="${_TEST_CLAUDE_SETTINGS:-$target_claude/settings.json}"
 
-    mkdir -p "/home/node/.claude"
+    mkdir -p "$target_claude"
 
     if [ ! -f "$settings" ]; then
         echo '{"enabledPlugins":{"superpowers@claude-plugins-official":true}}' > "$settings"
@@ -143,11 +145,38 @@ ensure_superpowers_plugin() {
     echo "$updated" > "$settings"
 }
 
+check_credentials_expiry() {
+    local creds="${_TEST_CREDS:-/home/node/.claude/.credentials.json}"
+    if [ ! -f "$creds" ]; then
+        echo ""
+        echo "No Claude credentials found — you will need to /login."
+        echo "   Tip: run 'claude' on your host first to authenticate persistently,"
+        echo "   then restart claude-safe."
+        echo ""
+        return
+    fi
+    local expires_at
+    expires_at=$(jq -r '.claudeAiOauth.expiresAt // empty' "$creds" 2>/dev/null)
+    if [ -n "$expires_at" ] && [ "$expires_at" != "null" ]; then
+        local now_ms
+        now_ms=$(( $(date +%s) * 1000 ))
+        if [ "$expires_at" -lt "$now_ms" ]; then
+            echo ""
+            echo "WARNING: Claude credentials have EXPIRED"
+            echo "  Run 'claude' on your host and use /login to refresh them,"
+            echo "  then restart claude-safe."
+            echo ""
+        fi
+    fi
+}
+
 extract_worktree_name() {
     local gitdir_path="$1"
     local normalized_path="${gitdir_path//\\//}"
     basename "$normalized_path"
 }
+
+if [ "${BATS_TESTING:-}" = "1" ]; then return 0; fi
 
 # Fix Docker socket permissions if mounted
 if [ -S /var/run/docker.sock ]; then
@@ -223,26 +252,7 @@ sudo /usr/local/bin/init-firewall.sh
 # Warn if Claude OAuth credentials are expired so the user knows to re-login
 # on the host before starting a new session. Skipped when using an API key.
 if [ -z "${ANTHROPIC_API_KEY:-}" ]; then
-    CREDS="/home/node/.claude/.credentials.json"
-    if [ ! -f "$CREDS" ]; then
-        echo ""
-        echo "No Claude credentials found — you will need to /login."
-        echo "   Tip: run 'claude' on your host first to authenticate persistently,"
-        echo "   then restart claude-safe."
-        echo ""
-    else
-        EXPIRES_AT=$(jq -r '.claudeAiOauth.expiresAt // empty' "$CREDS" 2>/dev/null)
-        if [ -n "$EXPIRES_AT" ] && [ "$EXPIRES_AT" != "null" ]; then
-            NOW_MS=$(( $(date +%s) * 1000 ))
-            if [ "$EXPIRES_AT" -lt "$NOW_MS" ]; then
-                echo ""
-                echo "WARNING: Claude credentials have EXPIRED"
-                echo "  Run 'claude' on your host and use /login to refresh them,"
-                echo "  then restart claude-safe."
-                echo ""
-            fi
-        fi
-    fi
+    check_credentials_expiry
 fi
 
 # Change to the designated working directory.
