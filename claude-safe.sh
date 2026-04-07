@@ -78,6 +78,13 @@ Arguments:
 
 Options:
   -h, --help            Show this help message and exit.
+  --no-browser          Do not grant the container access to the host X11
+                        display. Use this when running headless or when you
+                        do not want the container to be able to open windows
+                        on your desktop. By default, the X11 socket is shared
+                        so that /login inside the container can open your
+                        browser automatically. DISPLAY defaults to :0 when
+                        not set in the environment.
 
 Environment variables (set in .env or shell):
   ANTHROPIC_API_KEY     API key for Claude. Leave empty to use web-based login.
@@ -89,17 +96,23 @@ Examples:
   $(basename "$0")                        # use current directory
   $(basename "$0") /path/to/repo          # single repo
   $(basename "$0") /repo/a /repo/b        # multiple repos
+  $(basename "$0") --no-browser /path/to/repo   # skip X11 display sharing
 EOF
 }
 
 # Collect raw paths from arguments, .env, or default to current directory
+NO_BROWSER=false
 RAW_PATHS=()
 if [ $# -ge 1 ]; then
-    case "$1" in
-        -h|--help) usage; exit 0 ;;
-    esac
-    RAW_PATHS=("$@")
-elif [ -z "${PROJECT_DIR:-}" ] && [ -f "$SCRIPT_DIR/.env" ]; then
+    for _arg in "$@"; do
+        case "$_arg" in
+            -h|--help) usage; exit 0 ;;
+            --no-browser) NO_BROWSER=true ;;
+            *) RAW_PATHS+=("$_arg") ;;
+        esac
+    done
+fi
+if [ "${#RAW_PATHS[@]}" -eq 0 ] && [ -z "${PROJECT_DIR:-}" ] && [ -f "$SCRIPT_DIR/.env" ]; then
     _env_dir=$(grep -E '^PROJECT_DIR=' "$SCRIPT_DIR/.env" 2>/dev/null | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'" || true)
     [ -n "$_env_dir" ] && RAW_PATHS+=("$_env_dir")
 fi
@@ -184,9 +197,99 @@ if [ -f "$OVERRIDE_FILE" ]; then
     COMPOSE_FILES+=(-f "$OVERRIDE_FILE")
 fi
 
-"${COMPOSE_CMD[@]}" "${COMPOSE_FILES[@]}" run --rm "${EXTRA_VOLUME_FLAGS[@]}" claude-code
+# Open host browser from the container via a Unix socket relay.
+# AppArmor (docker-default profile) blocks D-Bus from the container, so
+# xdg-open is called on the HOST side by a Python listener started here.
+# The container sends URLs over a bind-mounted Unix socket. The listener
+# validates the URL scheme before passing it to xdg-open.
+# When DISPLAY is unset and --no-browser is not given, default to :0.
+X11_VOLUME_FLAGS=()
+BROWSER_SOCKET_FLAGS=()
+DISPLAY_FLAGS=()
+_listener_pid=""
+_browser_socket=""
+_listener_script=""
+
+cleanup_browser() {
+    [ -n "$_listener_pid" ] && kill "$_listener_pid" 2>/dev/null || true
+    [ -n "$_browser_socket" ] && rm -f "$_browser_socket" 2>/dev/null || true
+    [ -n "$_listener_script" ] && rm -f "$_listener_script" 2>/dev/null || true
+}
+
+if [ "$NO_BROWSER" = false ]; then
+    : "${DISPLAY:=:0}"
+    if xhost +local:docker > /dev/null 2>&1; then
+        X11_VOLUME_FLAGS=(-v /tmp/.X11-unix:/tmp/.X11-unix)
+        DISPLAY_FLAGS=(-e DISPLAY="$DISPLAY")
+    fi
+
+    _browser_socket=$(mktemp -u /tmp/claude-browser-XXXXXX.sock)
+    _listener_script=$(mktemp /tmp/claude-browser-listener-XXXXXX.py)
+    _sentinel="${_browser_socket}.ready"
+
+    # Write the listener to a temp file to avoid HEREDOC-in-subshell PID issues.
+    # The listener validates that URLs start with https:// before calling xdg-open.
+    # It loops indefinitely and exits only when killed via the cleanup trap.
+    cat > "$_listener_script" << PYEOF
+import socket, subprocess, os, sys
+
+socket_path = "$_browser_socket"
+sentinel_path = "$_sentinel"
+
+if os.path.exists(socket_path):
+    os.remove(socket_path)
+
+sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+sock.bind(socket_path)
+os.chmod(socket_path, 0o700)
+sock.listen(5)
+
+# Signal readiness to the shell by creating the sentinel file.
+open(sentinel_path, 'w').close()
+
+try:
+    while True:
+        conn, _ = sock.accept()
+        try:
+            data = conn.recv(2048).decode('utf-8', errors='ignore').strip()
+            if data.startswith('https://'):
+                subprocess.Popen(['xdg-open', data],
+                                 stdout=subprocess.DEVNULL,
+                                 stderr=subprocess.DEVNULL)
+        finally:
+            conn.close()
+except Exception:
+    pass
+finally:
+    sock.close()
+    for p in (socket_path, sentinel_path):
+        try:
+            os.remove(p)
+        except OSError:
+            pass
+PYEOF
+
+    # Start the listener as a direct background job so $! is the real PID.
+    python3 "$_listener_script" &
+    _listener_pid=$!
+    trap 'cleanup_browser' EXIT
+
+    # Wait for the listener to bind before starting the container.
+    _wait=0
+    while [ ! -f "$_sentinel" ] && [ $_wait -lt 50 ]; do
+        sleep 0.1
+        _wait=$(( _wait + 1 ))
+    done
+    rm -f "$_sentinel"
+
+    BROWSER_SOCKET_FLAGS=(-v "${_browser_socket}:${_browser_socket}" \
+                          -e CLAUDE_BROWSER_SOCKET="${_browser_socket}")
+fi
+
+"${COMPOSE_CMD[@]}" "${COMPOSE_FILES[@]}" run --rm "${EXTRA_VOLUME_FLAGS[@]}" "${X11_VOLUME_FLAGS[@]}" "${BROWSER_SOCKET_FLAGS[@]}" "${DISPLAY_FLAGS[@]}" claude-code
 
 # Cleanup
+cleanup_browser
 [ -n "$TEMP_WORKSPACE" ] && rm -rf "$TEMP_WORKSPACE"
 echo ""
-echo "✅ Claude Code session ended"
+echo "Claude Code session ended"
