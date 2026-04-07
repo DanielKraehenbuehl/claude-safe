@@ -28,6 +28,7 @@ services:
       # Import SSH keys and Claude auth from host without masking image content
       - ~/.ssh:/host-ssh:ro
       - ~/.claude:/host-claude:ro
+      - ~/.gitconfig:/host-gitconfig:ro
       # Persistent volumes for history and Claude config
       - claude-code-bashhistory:/commandhistory
       - claude-code-config:/home/node/.claude
@@ -45,3 +46,10 @@ services:
 volumes:
   claude-code-bashhistory:
   claude-code-config:
+
+networks:
+  default:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
