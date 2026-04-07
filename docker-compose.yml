@@ -23,8 +23,8 @@ services:
     volumes:
       # Mount your project directory here
       - ${PROJECT_DIR:-.}:/workspace
-      # For git worktrees: mount the parent repo (defaults to PROJECT_DIR when not set)
-      - ${GIT_PARENT_REPO:-${PROJECT_DIR:-.}}:/git-parent-repo
+      # For git worktrees: mount the parent repo (defaults to PROJECT_DIR or current dir when not set)
+      - ${GIT_PARENT_REPO:-.}:/git-parent-repo
       # Import SSH keys and Claude auth from host without masking image content
       - ~/.ssh:/host-ssh:ro
       - ~/.claude:/host-claude:ro
